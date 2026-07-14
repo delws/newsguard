@@ -155,11 +155,26 @@ def main() -> None:
     parser.add_argument("--days", type=int, default=3, help="глибина збору (типово 3)")
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT,
                         help=f"макс. постів на джерело за запуск (типово {DEFAULT_LIMIT})")
+    parser.add_argument("--refresh-corpus", action="store_true",
+                        help="перед оцінкою дозібрати еталонний корпус і довекторизувати "
+                             "(інакше свіжі пости впираються у застарілий корпус -> хибні no_data)")
     args = parser.parse_args()
 
     cfg = load_config()
     with db.get_conn() as conn:
         db.apply_schema(conn)
+        if args.refresh_corpus:
+            from newsguard import embedder
+            print("Оновлюю еталонний корпус…")
+            for src in fetcher.sync_sources(conn, cfg, "sources"):
+                try:
+                    new, _dup = fetcher.fetch_source(conn, src, args.days)
+                    if new:
+                        print(f"  {src['name']}: +{new} нових постів")
+                except Exception as exc:
+                    log.warning("%s: %s", src["name"], exc)
+            n = embedder.embed_new_posts(conn, cfg)
+            print(f"Довекторизовано чанків: {n}\n")
         if args.gold:
             sources = fetcher.sync_sources(conn, cfg, "gold_sources")
             if not sources:
