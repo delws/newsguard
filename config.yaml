@@ -100,7 +100,8 @@ sources:
 
   - name: ZN.UA
     kind: rss
-    identifier: https://zn.ua/rss
+    # /rss віддає порожній <channel> без <item>; робочий повний фід — /rss/full/
+    identifier: https://zn.ua/rss/full/
     role: reference
     topic: [politics]
     trust_note: Білий список ІМІ, 2 півріччя 2025
