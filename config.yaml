@@ -27,13 +27,26 @@ llm:
     base_url: https://api.groq.com/openai/v1
     api_key_env: GROQ_API_KEY
     temperature: 0.0
+    # Квоти Groq рахуються ПО МОДЕЛЯХ, тому інша модель = свіжий денний ліміт
+    fallback:
+      provider: groq
+      model: openai/gpt-oss-120b
+      base_url: https://api.groq.com/openai/v1
+      api_key_env: GROQ_API_KEY
+      temperature: 0.0
   judge:
     provider: groq
     model: llama-3.3-70b-versatile
     base_url: https://api.groq.com/openai/v1
     api_key_env: GROQ_API_KEY
     temperature: 0.0
-    # Опціональний fallback при вичерпаних ретраях (розкоментуйте і заповніть):
+    fallback:
+      provider: groq
+      model: openai/gpt-oss-120b
+      base_url: https://api.groq.com/openai/v1
+      api_key_env: GROQ_API_KEY
+      temperature: 0.0
+    # Приклад fallback на іншого провайдера:
     # fallback:
     #   provider: google_ai_studio
     #   model: <актуальна модель>
@@ -194,16 +207,16 @@ sources:
 # одне свідомо неякісне, одне якісне. Значення впише власник проєкту.
 # ---------------------------------------------------------------------------
 gold_sources:
-  - name: TODO-неякісне-джерело
+  - name: MediaKiller (gold, неякісне)
     kind: telegram
-    identifier: TODO   # tg-хендл свідомо сміттєвого каналу
+    identifier: https://t.me/MediaKiller2021  # свідомо сміттєвий канал
     role: user
     topic: [politics]
     trust_note: gold-тест, очікуються contradicted/no_data
 
-  - name: TODO-якісне-джерело
+  - name: Суспільне TG (gold, якісне)
     kind: telegram
-    identifier: TODO   # tg-хендл якісного каналу
+    identifier: https://t.me/suspilnenews   # офіційний tg Суспільного
     role: user
     topic: [politics]
     trust_note: gold-тест, очікуються supported

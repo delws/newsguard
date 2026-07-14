@@ -46,7 +46,9 @@ SYSTEM_PROMPT = """Ти — суддя фактичних тверджень. Т
 4. Часткове підтвердження (підтверджена подія, але інша ключова цифра) —
    це "contradicted" щодо цифри, якщо розбіжність суттєва, інакше "supported"
    з нижчим confidence.
-5. confidence — твоя впевненість у вердикті від 0 до 1.
+5. confidence — твоя впевненість у ВЕРДИКТІ від 0 до 1, а НЕ "ймовірність
+   істинності твердження". Якщо ти впевнений, що фрагменти не стосуються
+   твердження, — це no_data з ВИСОКИМ confidence (0.9+).
 6. У used_chunk_ids вкажи id лише тих фрагментів, на які реально спирався.
 
 Відповідай ЛИШЕ валідним JSON:
@@ -73,9 +75,11 @@ def judge_claim(claim_text: str, chunks: list[dict], cfg: dict) -> dict:
     if not chunks:
         return dict(NO_CHUNKS_VERDICT)
 
+    # Обрізаємо фрагменти: TPM безкоштовних тирів малий (у Groq — 12K/хв),
+    # а суть новинного чанка майже завжди в перших реченнях
     fragments = "\n\n".join(
         f"[chunk_id={c['chunk_id']}] {c['source_name']}, "
-        f"{c['published_at']:%Y-%m-%d %H:%M} UTC:\n{c['chunk_text']}"
+        f"{c['published_at']:%Y-%m-%d %H:%M} UTC:\n{c['chunk_text'][:700]}"
         for c in chunks
     )
     user = f"ТВЕРДЖЕННЯ:\n{claim_text}\n\nФРАГМЕНТИ КОРПУСУ:\n{fragments}"

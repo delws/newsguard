@@ -51,6 +51,9 @@ OPENAI_COMPATIBLE = {"groq", "together", "openrouter", "ollama", "google_ai_stud
 # Скільки чекати перед N-м ретраєм (секунди, плюс джитер)
 _BACKOFF_BASE = 2.0
 _BACKOFF_MAX = 60.0
+# Стеля для Retry-After від провайдера: якщо просять чекати довше (вичерпано
+# ДЕННИЙ ліміт) — чесно падаємо з поясненням, а не висимо годинами
+_RETRY_AFTER_CAP = 120.0
 
 
 class LLMError(Exception):
@@ -124,9 +127,15 @@ def _call_with_backoff(system: str, user: str, cfg: dict) -> str:
         if attempt:
             delay = min(_BACKOFF_BASE * (2 ** (attempt - 1)), _BACKOFF_MAX)
             delay += random.uniform(0, delay / 2)  # джитер проти синхронних ретраїв
-            # Якщо сервер прислав Retry-After — поважаємо його
+            # Якщо сервер прислав Retry-After — поважаємо його, але з межею:
+            # величезний Retry-After означає вичерпаний денний ліміт
             retry_after = getattr(last_exc, "retry_after", None)
             if retry_after:
+                if retry_after > _RETRY_AFTER_CAP:
+                    raise LLMError(
+                        f"{provider}/{cfg.get('model')}: провайдер просить чекати "
+                        f"{retry_after:.0f} с — схоже, вичерпано денний ліміт. "
+                        "Спробуйте пізніше або налаштуйте fallback у config.yaml.")
                 delay = max(delay, retry_after)
             log.info("Ретрай %d/%d через %.1f с (%s)", attempt, max_retries, delay, last_exc)
             time.sleep(delay)

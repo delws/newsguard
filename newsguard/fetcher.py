@@ -37,6 +37,13 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 TG_MAX_PAGES = 40
 
 
+def normalize_telegram(identifier: str) -> str:
+    """Зводить t.me-URL чи @хендл до чистого username: https://t.me/s/abc -> abc."""
+    ident = identifier.strip()
+    ident = re.sub(r"^https?://t\.me/(s/)?", "", ident)
+    return ident.lstrip("@").strip("/")
+
+
 def _clean_text(html_or_text: str) -> str:
     """Знімає HTML-теги, стискає пробіли, зберігає розбиття на абзаци."""
     soup = BeautifulSoup(html_or_text, "html.parser")
@@ -118,6 +125,7 @@ def fetch_rss(feed_url: str, since: datetime) -> list[dict]:
 
 def fetch_telegram(username: str, since: datetime) -> list[dict]:
     """Гортає t.me/s/<username> назад у часі до `since`. Репости пропускаються."""
+    username = normalize_telegram(username)
     posts: list[dict] = []
     before: str | None = None
     for _page in range(TG_MAX_PAGES):
