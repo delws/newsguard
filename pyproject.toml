@@ -1,0 +1,24 @@
+[project]
+name = "newsguard"
+version = "0.1.0"
+description = "RAG-система валідації достовірності новинних постів відносно корпусу довірених українських ЗМІ"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3",
+    "httpx>=0.27",
+    "feedparser>=6.0.11",
+    "beautifulsoup4>=4.12",
+    "sentence-transformers>=3.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+# Потрібно лише якщо в config.yaml обрано provider: anthropic
+anthropic = ["anthropic>=0.40"]
+
+[tool.uv]
+# sentence-transformers тягне torch; на CPU-ноутбуці ставимо CPU-збірку
+# (uv сам обере колесо без CUDA, якщо немає GPU)

@@ -1,0 +1,21 @@
+# PostgreSQL 16 з розширенням pgvector — офіційний образ проєкту pgvector (MIT/PostgreSQL license)
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: newsguard-db
+    environment:
+      POSTGRES_USER: newsguard
+      POSTGRES_PASSWORD: newsguard
+      POSTGRES_DB: newsguard
+    ports:
+      - "5432:5432"
+    volumes:
+      - newsguard_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newsguard -d newsguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  newsguard_pgdata:

@@ -1,0 +1,27 @@
+# Секрети — ніколи в репозиторій
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+
+# uv
+uv.lock
+
+# Кеші моделей sentence-transformers / huggingface (якщо локальні)
+.cache/
+models/
+
+# IDE
+.idea/
+.vscode/
+
+# Дані Postgres, якщо volume замаплено локально
+pgdata/
+
+# Локальні налаштування Claude Code
+.claude/settings.local.json

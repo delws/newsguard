@@ -1,0 +1,208 @@
+# NEWSGUARD — конфігурація
+# Усі RSS-фіди нижче перевірені реальними запитами 2026-07-14: фід відповідає
+# валідним XML, а його <title> збігається з виданням. Де RSS не знайдено —
+# fallback на t.me/s/ з хендлом, підтвердженим НА САЙТІ видання (не вгаданим).
+
+embedding:
+  # MIT-ліцензія; укр+рос; dim=1024; працює локально на CPU
+  model: intfloat/multilingual-e5-large
+  dim: 1024
+  # Обов'язкові префікси e5: без них якість пошуку помітно падає
+  prefix_passage: "passage: "   # для чанків корпусу
+  prefix_query: "query: "       # для claim при пошуку
+  chunk_target_tokens: 500      # чанкінг за абзацами, ~500 токенів
+
+retrieval:
+  # КРИТИЧНО: новини живуть годинами — векторний пошук ЗАВЖДИ
+  # фільтрується за published_at у вікні ±window_hours від дати поста
+  window_hours: 48
+  top_k: 8
+
+llm:
+  # Модель задається ТІЛЬКИ тут (провайдери видаляють моделі без попередження —
+  # перед запуском звірте з актуальним списком: https://console.groq.com/docs/models)
+  extractor:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    temperature: 0.0
+  judge:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    temperature: 0.0
+    # Опціональний fallback при вичерпаних ретраях (розкоментуйте і заповніть):
+    # fallback:
+    #   provider: google_ai_studio
+    #   model: <актуальна модель>
+    #   base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    #   api_key_env: GEMINI_API_KEY
+
+  # Другий суддя для порівняння бік-о-бік у test_channel.py --gold (опційно):
+  # judge_alt:
+  #   provider: google_ai_studio
+  #   model: <актуальна модель>
+  #   base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  #   api_key_env: GEMINI_API_KEY
+
+  # Приклад anthropic (кешування системного промпту + Batch API вмикаються автоматично):
+  # judge:
+  #   provider: anthropic
+  #   model: <актуальна модель з docs.anthropic.com>
+  #   api_key_env: ANTHROPIC_API_KEY
+  #   price_in_per_mtok: 0.0   # заповніть для логування вартості
+  #   price_out_per_mtok: 0.0
+
+# ---------------------------------------------------------------------------
+# Еталонний корпус: білий список ІМІ (2 півріччя 2025), 17 медіа.
+# Еталон = НЕ "істина", а консенсус довірених джерел.
+# ---------------------------------------------------------------------------
+sources:
+  - name: Суспільне Новини
+    kind: rss
+    identifier: https://suspilne.media/rss/all.rss
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Українська правда
+    kind: rss
+    identifier: https://www.pravda.com.ua/rss/
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Радіо Свобода
+    kind: rss
+    # Офіційний RSS-ендпоінт RFE/RL (перевірено: <title> = "Новини - Радіо Свобода")
+    identifier: https://www.radiosvoboda.org/api/zrqiteuuir
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Бабель
+    kind: rss
+    identifier: https://babel.ua/rss.xml
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: hromadske
+    kind: telegram
+    # RSS на hromadske.ua не знайдено (усі стандартні шляхи — 404/HTML).
+    # Хендл підтверджено посиланням у шапці hromadske.ua; t.me/s/ віддає стрічку.
+    identifier: hromadske_ua
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: ZN.UA
+    kind: rss
+    identifier: https://zn.ua/rss
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Еспресо
+    kind: rss
+    identifier: https://espreso.tv/rss
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: LB.ua
+    kind: rss
+    identifier: https://lb.ua/rss/ukr/rss.xml
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Укрінформ
+    kind: rss
+    identifier: https://www.ukrinform.ua/rss/block-lastnews
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Тексти
+    kind: telegram
+    # RSS на texty.org.ua не знайдено (стандартні шляхи не відповідають XML).
+    # Хендл підтверджено посиланням на головній texty.org.ua; t.me/s/ віддає стрічку.
+    identifier: textyorgua
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Ґрати
+    kind: rss
+    identifier: https://graty.me/feed/
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Громадське радіо
+    kind: rss
+    identifier: https://hromadske.radio/feed
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Український тиждень
+    kind: rss
+    identifier: https://tyzhden.ua/rss
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Рубрика
+    kind: rss
+    identifier: https://rubryka.com/feed/
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Слово і Діло
+    kind: rss
+    identifier: https://www.slovoidilo.ua/rss.xml
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  - name: Новинарня
+    kind: rss
+    identifier: https://novynarnia.com/feed/
+    role: reference
+    topic: [politics]
+    trust_note: Білий список ІМІ, 2 півріччя 2025
+
+  # TODO(frontliner): RSS вимкнено на боці сайту (/feed/ віддає HTML, WP Rocket),
+  # telegram-хендл на frontliner.com.ua не знайдено — НЕ вгадуємо.
+  # Знайти офіційний канал вручну і вписати kind: telegram + identifier,
+  # або kind: web для скрейпа сайту.
+  # - name: Frontliner
+  #   kind: telegram
+  #   identifier: TODO
+  #   role: reference
+  #   topic: [politics]
+  #   trust_note: Білий список ІМІ, 2 півріччя 2025
+
+# ---------------------------------------------------------------------------
+# Тестові джерела для перевірки судді (test_channel.py --gold):
+# одне свідомо неякісне, одне якісне. Значення впише власник проєкту.
+# ---------------------------------------------------------------------------
+gold_sources:
+  - name: TODO-неякісне-джерело
+    kind: telegram
+    identifier: TODO   # tg-хендл свідомо сміттєвого каналу
+    role: user
+    topic: [politics]
+    trust_note: gold-тест, очікуються contradicted/no_data
+
+  - name: TODO-якісне-джерело
+    kind: telegram
+    identifier: TODO   # tg-хендл якісного каналу
+    role: user
+    topic: [politics]
+    trust_note: gold-тест, очікуються supported
