@@ -61,6 +61,24 @@ score         = accuracy · √verifiability                # 0..1
 контентом, издание с эксклюзивами платит проверяемостью за уникальность.
 Рейтинг надёжен от ~30 утверждений в окне.
 
+### Воркер обновления корпуса
+
+Корпус должен обновляться часто: новости живут часами, устаревший корпус
+даёт ложные `no_data`. Воркер не тратит LLM-токены (только RSS/скрейп +
+локальные эмбеддинги):
+
+```bash
+uv run python -m newsguard.worker          # демон: цикл каждые interval_minutes
+uv run python -m newsguard.worker --once   # один цикл — для планировщика
+```
+
+Настройки — `config.yaml` → `worker` (интервал, глубина дозбора, пересчёт
+рейтингов). Для Windows Task Scheduler создайте задачу на `--once`:
+
+```powershell
+schtasks /Create /TN NewsguardCorpus /SC HOURLY /TR "cmd /c cd /d D:\NEWSGUARD && uv run python -m newsguard.worker --once"
+```
+
 ### Дайджест
 
 `digest.py` строит markdown без LLM (ноль стоимости): сюжеты — кластеризация
@@ -132,4 +150,4 @@ judge:
 - [x] Шаг 4: `test_channel.py` (+ `--gold`, `--refresh-corpus`, сравнение судей)
 - [x] Шаг 5: `scorer.py` (формула v2: веса confidence, штраф contradicted ×1.5)
 - [x] Шаг 6: `digest.py` (кластеризация сюжетов + бейджи, без LLM)
-- [ ] Шаг 7: воркер обновления корпуса по расписанию
+- [x] Шаг 7: `worker.py` — обновление корпуса по расписанию (демон / `--once`)
