@@ -25,7 +25,7 @@ def get_conn() -> psycopg.Connection:
     """Підключення до PostgreSQL. Рядки повертаються як dict."""
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
-        raise RuntimeError("DATABASE_URL не задано — скопіюйте .env.example у .env")
+        raise RuntimeError("DATABASE_URL не задано — створіть файл .env (див. README)")
     conn = psycopg.connect(dsn, row_factory=dict_row)
     _try_register_vector(conn)
     return conn

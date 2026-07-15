@@ -23,8 +23,13 @@ uv sync
 uv sync --extra anthropic
 
 # 3. Ключи
-cp .env.example .env
+# создайте файл .env в корне проекта (ключи НИКОГДА не попадают в git):
+cat > .env <<'EOF'
+DATABASE_URL=postgresql://newsguard:newsguard@localhost:5432/newsguard
+GROQ_API_KEY=
+EOF
 # впишите GROQ_API_KEY — бесплатно, без карты: https://console.groq.com
+# опциональные ключи: ANTHROPIC_API_KEY, TOGETHER_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY
 
 # 4. Применить схему БД
 uv run python -m newsguard.db
