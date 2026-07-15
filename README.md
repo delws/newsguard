@@ -30,13 +30,43 @@ cp .env.example .env
 uv run python -m newsguard.db
 ```
 
-Дальше (по мере готовности шагов):
+Основные команды:
 
 ```bash
-uv run python -m newsguard.fetcher     # шаг 2: наполнить корпус эталонами
-uv run python test_channel.py --source <tg_username|url> --days 3   # шаг 4
-uv run python test_channel.py --gold   # прогон gold-источников
+uv run python -m newsguard.fetcher --days 7          # наполнить/обновить корпус
+uv run python -m newsguard.embedder                  # довекторизовать новое
+uv run python test_channel.py --source <tg|url> --days 3   # проверить источник
+uv run python test_channel.py --gold --refresh-corpus      # gold-тест судьи
+uv run python -m newsguard.scorer --window-days 7    # рейтинг источников
+uv run python -m newsguard.digest --topic politics --hours 24 --out digest.md
 ```
+
+`--refresh-corpus` дособирает эталонный корпус перед оценкой — без этого
+свежие посты сравниваются с устаревшим корпусом и получают ложные `no_data`.
+
+### Рейтинг источника (scorer)
+
+Вердикты по атомарным утверждениям агрегируются за скользящее окно
+(по `published_at` поста), каждый — с весом confidence судьи:
+
+```
+accuracy      = (sup_w + 1) / (sup_w + 1.5·con_w + 2)   # сглаживание Лапласа
+verifiability = (sup_w + con_w) / total_w
+score         = accuracy · √verifiability                # 0..1
+```
+
+Подтверждённая ложь бьёт в 1.5 раза сильнее, чем подтверждённая правда
+помогает; море `no_data` мягко снижает проверяемость (но `no_data` ≠ фейк).
+Известные пределы: канал-репостер реальных новостей набирает supported чужим
+контентом, издание с эксклюзивами платит проверяемостью за уникальность.
+Рейтинг надёжен от ~30 утверждений в окне.
+
+### Дайджест
+
+`digest.py` строит markdown без LLM (ноль стоимости): сюжеты — кластеризация
+постов эталонного корпуса по векторной близости, ранжирование по числу
+НЕЗАВИСИМЫХ доверенных источников (консенсус, а не громкость); ниже — свежие
+утверждения пользовательских источников с бейджами ✅/❌/⚪ и рейтингом канала.
 
 ## Как добавить источник
 
@@ -97,9 +127,9 @@ judge:
 ## Статус сборки
 
 - [x] Шаг 1: `schema.sql`, `db.py`, `llm.py`, `config.yaml` (фиды проверены), инфраструктура
-- [ ] Шаг 2: `fetcher.py`, `embedder.py`, наполнение корпуса
-- [ ] Шаг 3: `extractor.py`, `retriever.py`, `judge.py`
-- [ ] Шаг 4: `test_channel.py` (+ `--gold`)
-- [ ] Шаг 5: `scorer.py`
-- [ ] Шаг 6: `digest.py`
+- [x] Шаг 2: `fetcher.py`, `embedder.py`, наполнение корпуса (16 источников, 1000+ постов)
+- [x] Шаг 3: `extractor.py`, `retriever.py`, `judge.py`
+- [x] Шаг 4: `test_channel.py` (+ `--gold`, `--refresh-corpus`, сравнение судей)
+- [x] Шаг 5: `scorer.py` (формула v2: веса confidence, штраф contradicted ×1.5)
+- [x] Шаг 6: `digest.py` (кластеризация сюжетов + бейджи, без LLM)
 - [ ] Шаг 7: воркер обновления корпуса по расписанию

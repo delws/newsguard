@@ -5,17 +5,29 @@
 непідтверджені твердження НЕ прирівнюються до спростованих — але канал,
 який пише переважно неперевірюване, не може мати високий рейтинг.
 
-Формула v1 (прозора евристика, підлягає калібруванню на реальних даних):
+Формула v2 (прозора евристика, відкалібрована на gold-тесті 2026-07-15):
 
-    accuracy      = (supported + 1) / (supported + contradicted + 2)
-                    # Лапласове згладжування: мало даних -> ближче до 0.5
-    verifiability = (supported + contradicted) / total
+    Кожен вердикт враховується З ВАГОЮ confidence судді (невпевнений вердикт
+    важить менше). Зважені суми: sup_w, con_w, nod_w; total_w = їх сума.
+
+    accuracy      = (sup_w + 1) / (sup_w + CONTRADICTED_WEIGHT * con_w + 2)
+                    # Лапласове згладжування: мало даних -> ближче до 0.5;
+                    # доведена неправда коштує в 1.5 раза дорожче, ніж
+                    # доведена правда допомагає
+    verifiability = (sup_w + con_w) / total_w
                     # яка частка тверджень взагалі перетинається з корпусом
     score         = accuracy * sqrt(verifiability)          # 0..1
 
-  * contradicted б'є по accuracy напряму;
-  * море no_data тягне вниз через verifiability, але м'яко (корінь);
+  * contradicted б'є по accuracy напряму, з підсиленою вагою;
+  * море no_data тягне вниз через verifiability, але м'яко (корінь) —
+    no_data ≠ фейк, ексклюзив легітимно відсутній у корпусі;
   * канал без жодного вердикта score не отримує (NULL, а не 0).
+
+  Відомі межі (виявлено на gold-тесті): канал-репостер реальних новин
+  набирає supported чужим контентом, а видання з ексклюзивами платить
+  verifiability'ю за унікальність. Розділення надійне лише на історії
+  від ~30 тверджень і разом із калібруванням промптів судді/екстрактора
+  (правила 4а та обережні дати), яке прибирає артефактні contradicted.
 
 Вікно рахується по published_at ПОСТА (не по даті оцінки): рейтинг відповідає
 на питання "наскільки правдивим був канал у цей період".
@@ -37,11 +49,14 @@ from . import db
 log = logging.getLogger(__name__)
 
 DEFAULT_WINDOW_DAYS = 7
+# Доведена суперечність шкодить сильніше, ніж підтвердження допомагає
+CONTRADICTED_WEIGHT = 1.5
 
 
 def verdict_counts(conn, source_id: int, window_start: datetime,
-                   window_end: datetime) -> dict[str, int]:
-    """Лічильники вердиктів по постах джерела у вікні.
+                   window_end: datetime) -> dict[str, float]:
+    """Лічильники вердиктів по постах джерела у вікні: і штучні (для БД),
+    і зважені за confidence (для формули).
 
     Якщо claim судили кілька разів (переоцінка) — береться ОСТАННІЙ вердикт.
     """
@@ -49,9 +64,12 @@ def verdict_counts(conn, source_id: int, window_start: datetime,
         """
         SELECT count(*) FILTER (WHERE lv.verdict = 'supported')    AS supported,
                count(*) FILTER (WHERE lv.verdict = 'contradicted') AS contradicted,
-               count(*) FILTER (WHERE lv.verdict = 'no_data')      AS no_data
+               count(*) FILTER (WHERE lv.verdict = 'no_data')      AS no_data,
+               COALESCE(sum(lv.confidence) FILTER (WHERE lv.verdict = 'supported'), 0)    AS sup_w,
+               COALESCE(sum(lv.confidence) FILTER (WHERE lv.verdict = 'contradicted'), 0) AS con_w,
+               COALESCE(sum(lv.confidence) FILTER (WHERE lv.verdict = 'no_data'), 0)      AS nod_w
         FROM (
-            SELECT DISTINCT ON (c.id) c.id, v.verdict
+            SELECT DISTINCT ON (c.id) c.id, v.verdict, v.confidence
             FROM claims c
             JOIN posts p    ON p.id = c.post_id
             JOIN verdicts v ON v.claim_id = c.id
@@ -62,17 +80,18 @@ def verdict_counts(conn, source_id: int, window_start: datetime,
         """,
         (source_id, window_start, window_end),
     ).fetchone()
-    return {k: row[k] or 0 for k in ("supported", "contradicted", "no_data")}
+    return {k: row[k] or 0 for k in
+            ("supported", "contradicted", "no_data", "sup_w", "con_w", "nod_w")}
 
 
-def compute_score(counts: dict[str, int]) -> float | None:
-    """Формула v1 (див. docstring модуля). None, якщо вердиктів немає."""
-    sup, con, nod = counts["supported"], counts["contradicted"], counts["no_data"]
-    total = sup + con + nod
-    if total == 0:
+def compute_score(counts: dict[str, float]) -> float | None:
+    """Формула v2 (див. docstring модуля). None, якщо вердиктів немає."""
+    sup_w, con_w, nod_w = counts["sup_w"], counts["con_w"], counts["nod_w"]
+    total_w = sup_w + con_w + nod_w
+    if total_w == 0:
         return None
-    accuracy = (sup + 1) / (sup + con + 2)
-    verifiability = (sup + con) / total
+    accuracy = (sup_w + 1) / (sup_w + CONTRADICTED_WEIGHT * con_w + 2)
+    verifiability = (sup_w + con_w) / total_w
     return round(accuracy * math.sqrt(verifiability), 4)
 
 
